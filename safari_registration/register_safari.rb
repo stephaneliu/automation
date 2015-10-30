@@ -40,8 +40,18 @@ class SubmitRegistration
 end
 
 class NotifySendNotifier
+  def self.available
+    system 'which notify-send'
+  end
+
   def display(message)
     `notify-send "Registration to Safari Online results" "#{message}" -t 10000 -i notification-message-email`
+  end
+end
+
+class StandardNotifier
+  def display(message)
+    puts "Registration to Safari Online results: #{message}"
   end
 end
 
@@ -64,7 +74,6 @@ class HtmlParser
 
   def results
     result_content = parser.parse(content).css('div.alrtBoxContent div p.p').first.content
-    puts result_content
 
     if result_content =~ /^No more users can be added to this account/
       "Safari Online registration currently closed"
@@ -74,13 +83,19 @@ class HtmlParser
   end
 end
 
-name = ARGV[0]
+name  = ARGV[0]
 email = ARGV[1]
 
 if email =~ /@/
+  notifier = if NotifySendNotifier.available
+               NotifySendNotifier
+             else
+               StandardNotifier
+             end
+
   user         = User.new(name: name, email: email)
   registration = SubmitRegistration.new(user: user).submit
-  RegistrationChecker.new(registration: registration).register
+  RegistrationChecker.new(registration: registration, notification: notifier.new).register
 else
   puts "USAGE: ruby safari_registartion.rb [full name] [email]"
 end
